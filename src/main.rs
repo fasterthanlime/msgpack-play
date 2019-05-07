@@ -61,14 +61,53 @@ impl<'de> Visitor<'de> for MessageVisitor {
                 // let's parse a request
                 let id = access.next_element::<u32>()?.ok_or(missing("id"))?;
                 let method = access.next_element::<String>()?.ok_or(missing("method"))?;
-                let params = match method.as_ref() {
-                    "Profile.LoginWithPassword" => Params::Profile_LoginWithPassword(
-                        access
-                            .next_element::<profile::login_with_password::Params>()?
-                            .ok_or(missing("params"))?,
-                    ),
-                    _ => unimplemented!(),
-                };
+
+                let params = {
+                    if method.starts_with("Profile.LoginWith") {
+                        let m = &method[17..];
+                        match m.chars().next() {
+                            Some(c) => match c {
+                                'T' => {
+                                    if m == "Token" {
+                                        Some(Params::Profile_LoginWithToken(
+                                            access
+                                                .next_element::<profile::login_with_token::Params>()?
+                                                .ok_or(missing("params"))?,
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                }
+                                'P' => {
+                                    if m == "Password" {
+                                        Some(Params::Profile_LoginWithPassword(
+                                            access
+                                                .next_element::<profile::login_with_password::Params>()?
+                                                .ok_or(missing("params"))?,
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                }
+                                _ => None,
+                            },
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
+                .ok_or(S::Error::custom(format!("unknown method: {}", method)))?;
+
+                // let params = match method.as_ref() {
+                //     "Profile.LoginWithPassword" => Params::Profile_LoginWithPassword(
+                //         access
+                //             .next_element::<profile::login_with_password::Params>()?
+                //             .ok_or(missing("params"))?,
+                //     ),
+                //     _ => unimplemented!(),
+                // };
+
                 Ok(Message::Request {
                     parent: None,
                     id,
@@ -104,18 +143,34 @@ mod profile {
             pub ok: bool,
         }
     }
+
+    pub mod login_with_token {
+        use serde_derive::*;
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct Params {
+            pub token: String,
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct Results {
+            pub ok: bool,
+        }
+    }
 }
 
 #[derive(Debug)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, unused)]
 enum Params {
     Profile_LoginWithPassword(profile::login_with_password::Params),
+    Profile_LoginWithToken(profile::login_with_token::Params),
 }
 
 #[derive(Debug)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, unused)]
 enum Results {
     Profile_LoginWithPassword(profile::login_with_password::Results),
+    Profile_LoginWithToken(profile::login_with_token::Results),
 }
 
 pub trait ParamsLike: serde::Serialize + std::fmt::Debug {
@@ -129,6 +184,7 @@ impl Serialize for Params {
     {
         match self {
             Params::Profile_LoginWithPassword(x) => x.serialize(s),
+            Params::Profile_LoginWithToken(x) => x.serialize(s),
         }
     }
 }
@@ -137,6 +193,7 @@ impl ParamsLike for Params {
     fn method(&self) -> &'static str {
         match self {
             Params::Profile_LoginWithPassword(_) => "Profile.LoginWithPassword",
+            Params::Profile_LoginWithToken(_) => "Profile.LoginWithToken",
         }
     }
 }
