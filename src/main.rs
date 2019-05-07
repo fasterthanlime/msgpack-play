@@ -44,30 +44,6 @@ struct Request {
 }
 
 mod profile {
-    #[derive(Debug)]
-    pub enum Params {
-        LoginWithPassword(login_with_password::Params),
-    }
-
-    impl serde::ser::Serialize for Params {
-        fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::ser::Serializer,
-        {
-            match self {
-                Params::LoginWithPassword(x) => x.serialize(s),
-            }
-        }
-    }
-
-    impl super::ParamsLike for Params {
-        fn method(&self) -> &'static str {
-            match self {
-                Params::LoginWithPassword(_) => "Profile.LoginWithPassword",
-            }
-        }
-    }
-
     pub mod login_with_password {
         use serde_derive::*;
 
@@ -79,15 +55,16 @@ mod profile {
 
         impl Into<super::super::Params> for Params {
             fn into(self) -> super::super::Params {
-                super::super::Params::Profile(super::Params::LoginWithPassword(self))
+                super::super::Params::Profile_LoginWithPassword(self)
             }
         }
     }
 }
 
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 enum Params {
-    Profile(profile::Params),
+    Profile_LoginWithPassword(profile::login_with_password::Params),
 }
 
 pub trait ParamsLike: serde::Serialize + std::fmt::Debug {
@@ -100,7 +77,7 @@ impl Serialize for Params {
         S: Serializer,
     {
         match self {
-            Params::Profile(x) => x.serialize(s),
+            Params::Profile_LoginWithPassword(x) => x.serialize(s),
         }
     }
 }
@@ -108,7 +85,7 @@ impl Serialize for Params {
 impl ParamsLike for Params {
     fn method(&self) -> &'static str {
         match self {
-            Params::Profile(x) => x.method(),
+            Params::Profile_LoginWithPassword(_) => "Profile_LoginWithParams",
         }
     }
 }
