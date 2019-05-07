@@ -4,65 +4,100 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 
+	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 	"github.com/vmihailenco/msgpack"
 	"github.com/vmihailenco/msgpack/codes"
 )
 
-type RPCMessage struct {
-	Request  *Request
-	Response *Response
+type Profile_LoginWithPassword_Params struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
-var _ msgpack.CustomDecoder = (*RPCMessage)(nil)
-
-func (m *RPCMessage) DecodeMsgpack(d *msgpack.Decoder) error {
+func DecodeMessage(d *msgpack.Decoder) (interface{}, error) {
 	c, err := d.PeekCode()
 	if err != nil {
-		return errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
-	log.Printf("peeked code: %#v", c)
-	if codes.IsFixedMap(c) {
-		log.Printf("is fixed map!")
+	if !codes.IsFixedArray(c) {
+		return nil, errors.New("invalid msgpack-RPC message")
 	}
 
-	mymap, err := d.DecodeMap()
+	_, err = d.DecodeArrayLen()
 	if err != nil {
-		return errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
-	log.Printf("mymap = %#v", mymap)
+	kind, err := d.DecodeUint32()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
 
-	return nil
+	switch kind {
+	case 0:
+	default:
+		return nil, errors.Errorf("unknown messagepack-RPC message type %d", kind)
+	}
+
+	id, err := d.DecodeUint32()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	method, err := d.DecodeString()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var params interface{}
+	switch method {
+	case "Profile.LoginWithPassword":
+		var p Profile_LoginWithPassword_Params
+		err = d.Decode(&p)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		params = p
+	default:
+		return nil, errors.Errorf("unknown method: %s", method)
+	}
+
+	return Request{
+		ID:     id,
+		Method: method,
+		Params: params,
+	}, nil
 }
 
 type Request struct {
-	ID     uint32 `json:"id"`
-	Type   string `json:"type"`
-	Params Params `json:"params"`
+	ID     uint32
+	Method string
+	Params interface{}
 }
 
 type Response struct {
-	ID    uint32 `json:"id"`
-	Error string `json:"error"`
-}
-
-type Params struct {
-	Method string `json:"method"`
+	ID     uint32
+	Error  string
+	Result interface{}
 }
 
 func main() {
-	bs, err := ioutil.ReadFile("./buf.bin")
+	path := "./buf.bin"
+	fmt.Printf("Reading from %s\n", path)
+
+	bs, err := ioutil.ReadFile(path)
 	must(err)
 
-	var msg RPCMessage
 	dec := msgpack.NewDecoder(bytes.NewReader(bs))
 	dec.UseJSONTag(true)
-	must(dec.Decode(&msg))
 
-	log.Printf("msg = %#v", msg)
+	msg, err := DecodeMessage(dec)
+	must(err)
+	pp.Print(msg)
+
+	fmt.Println()
 }
 
 func must(err error) {

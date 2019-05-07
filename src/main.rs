@@ -192,14 +192,20 @@ fn cycle(msg: Message) {
 
     {
         use std::io::Write;
-        std::fs::File::create("./buf.bin")
+        let path = "./buf.bin";
+        std::fs::File::create(path)
             .unwrap()
             .write_all(&buf)
             .unwrap();
+        println!("Written to {}", path);
     }
 
-    println!("Structure: ");
-    dump_as_json(&mut &buf[..]);
+    println!("{:#?}", msg);
+
+    if false {
+        println!("Structure: ");
+        dump_as_json(&mut &buf[..]);
+    }
 
     let msg2: Message = rmp_serde::decode::from_slice(&buf[..]).unwrap();
     let mut buf2: Vec<u8> = Vec::new();
@@ -217,20 +223,22 @@ fn cycle(msg: Message) {
 }
 
 fn main() {
+    if false {
+        cycle(Message::Request {
+            parent: None,
+            id: 548,
+            params: Params::Profile_LoginWithToken(profile::login_with_token::Params {
+                token: "alrighty".into(),
+            }),
+        });
+    }
+
     cycle(Message::Request {
         parent: None,
         id: 127,
         params: Params::Profile_LoginWithPassword(profile::login_with_password::Params {
             username: "john".into(),
             password: "hunter2".into(),
-        }),
-    });
-
-    cycle(Message::Request {
-        parent: None,
-        id: 548,
-        params: Params::Profile_LoginWithToken(profile::login_with_token::Params {
-            token: "alrighty".into(),
         }),
     });
 }
