@@ -1,3 +1,4 @@
+use fasthash::{sea::Hash64, FastHash};
 use serde::de::{Deserialize, Deserializer, SeqAccess, Visitor};
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 use std::fmt;
@@ -86,6 +87,7 @@ impl<'de> Deserialize<'de> for Message {
 mod profile {
     pub mod login_with_password {
         use serde_derive::*;
+        pub const HASH: u64 = 14049389558238484926;
 
         #[derive(Serialize, Deserialize, Debug)]
         pub struct Params {
@@ -101,6 +103,7 @@ mod profile {
 
     pub mod login_with_token {
         use serde_derive::*;
+        pub const HASH: u64 = 4196540711449377264;
 
         #[derive(Serialize, Deserialize, Debug)]
         pub struct Params {
@@ -150,11 +153,18 @@ impl Params {
         access: &mut S,
     ) -> Result<Option<Self>, S::Error> {
         use serde::de::Error;
-        match method {
-            "Profile.LoginWithPassword" => Ok(access
+        let hash = Hash64::hash(method);
+        match hash {
+            profile::login_with_password::HASH => Ok(access
                 .next_element::<profile::login_with_password::Params>()?
                 .map(Params::Profile_LoginWithPassword)),
-            _ => Err(S::Error::custom(format!("unknown method {}", method))),
+            profile::login_with_token::HASH => Ok(access
+                .next_element::<profile::login_with_token::Params>()?
+                .map(Params::Profile_LoginWithToken)),
+            _ => Err(S::Error::custom(format!(
+                "unknown method {} (hash = {})",
+                method, hash
+            ))),
         }
     }
 }
@@ -175,16 +185,7 @@ struct Response {
     error: String,
 }
 
-fn main() {
-    let msg = Message::Request {
-        parent: None,
-        id: 42069,
-        params: Params::Profile_LoginWithPassword(profile::login_with_password::Params {
-            username: "john".into(),
-            password: "hunter2".into(),
-        }),
-    };
-
+fn cycle(msg: Message) {
     let mut buf: Vec<u8> = Vec::new();
     msg.serialize(&mut rmp_serde::Serializer::new_named(&mut buf))
         .unwrap();
@@ -213,6 +214,25 @@ fn main() {
             buf, buf2
         )
     }
+}
+
+fn main() {
+    cycle(Message::Request {
+        parent: None,
+        id: 127,
+        params: Params::Profile_LoginWithPassword(profile::login_with_password::Params {
+            username: "john".into(),
+            password: "hunter2".into(),
+        }),
+    });
+
+    cycle(Message::Request {
+        parent: None,
+        id: 548,
+        params: Params::Profile_LoginWithToken(profile::login_with_token::Params {
+            token: "alrighty".into(),
+        }),
+    });
 }
 
 fn dump_as_json<R>(input: R)
