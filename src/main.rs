@@ -61,52 +61,7 @@ impl<'de> Visitor<'de> for MessageVisitor {
                 // let's parse a request
                 let id = access.next_element::<u32>()?.ok_or(missing("id"))?;
                 let method = access.next_element::<String>()?.ok_or(missing("method"))?;
-
-                let params = {
-                    if method.starts_with("Profile.LoginWith") {
-                        let m = &method[17..];
-                        match m.chars().next() {
-                            Some(c) => match c {
-                                'T' => {
-                                    if m == "Token" {
-                                        Some(Params::Profile_LoginWithToken(
-                                            access
-                                                .next_element::<profile::login_with_token::Params>()?
-                                                .ok_or(missing("params"))?,
-                                        ))
-                                    } else {
-                                        None
-                                    }
-                                }
-                                'P' => {
-                                    if m == "Password" {
-                                        Some(Params::Profile_LoginWithPassword(
-                                            access
-                                                .next_element::<profile::login_with_password::Params>()?
-                                                .ok_or(missing("params"))?,
-                                        ))
-                                    } else {
-                                        None
-                                    }
-                                }
-                                _ => None,
-                            },
-                            _ => None,
-                        }
-                    } else {
-                        None
-                    }
-                }
-                .ok_or(S::Error::custom(format!("unknown method: {}", method)))?;
-
-                // let params = match method.as_ref() {
-                //     "Profile.LoginWithPassword" => Params::Profile_LoginWithPassword(
-                //         access
-                //             .next_element::<profile::login_with_password::Params>()?
-                //             .ok_or(missing("params"))?,
-                //     ),
-                //     _ => unimplemented!(),
-                // };
+                let params = Params::deserialize(&method, &mut access)?.ok_or(missing("params"))?;
 
                 Ok(Message::Request {
                     parent: None,
@@ -189,6 +144,21 @@ impl Serialize for Params {
     }
 }
 
+impl Params {
+    fn deserialize<'de, S: SeqAccess<'de>>(
+        method: &str,
+        access: &mut S,
+    ) -> Result<Option<Self>, S::Error> {
+        use serde::de::Error;
+        match method {
+            "Profile.LoginWithPassword" => Ok(access
+                .next_element::<profile::login_with_password::Params>()?
+                .map(Params::Profile_LoginWithPassword)),
+            _ => Err(S::Error::custom(format!("unknown method {}", method))),
+        }
+    }
+}
+
 impl ParamsLike for Params {
     fn method(&self) -> &'static str {
         match self {
@@ -199,6 +169,7 @@ impl ParamsLike for Params {
 }
 
 #[derive(Debug)]
+#[allow(unused)]
 struct Response {
     id: u32,
     error: String,
