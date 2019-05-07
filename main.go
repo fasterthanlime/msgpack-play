@@ -14,6 +14,7 @@ import (
 type Profile_LoginWithPassword_Params struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Bytes    []byte `json:"bytes"`
 }
 
 func DecodeMessage(d *msgpack.Decoder) (interface{}, error) {

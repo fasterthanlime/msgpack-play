@@ -93,6 +93,8 @@ mod profile {
         pub struct Params {
             pub username: String,
             pub password: String,
+            #[serde(with = "serde_bytes")]
+            pub bytes: Vec<u8>,
         }
 
         #[derive(Serialize, Deserialize, Debug)]
@@ -239,6 +241,7 @@ fn main() {
         params: Params::Profile_LoginWithPassword(profile::login_with_password::Params {
             username: "john".into(),
             password: "hunter2".into(),
+            bytes: vec![0x31, 0x00, 0x12, 0x24],
         }),
     });
 }
