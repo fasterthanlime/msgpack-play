@@ -1,0 +1,12 @@
+[package]
+name = "msgpack-play"
+version = "0.1.0"
+authors = ["Amos Wenger <amoswenger@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+rmp-serde = "0.13.7"
+serde = "1.0.91"
+serde_derive = "1.0.91"
+serde-transcode = "1.1.0"
+serde_json = "1.0.39"
