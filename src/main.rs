@@ -5,12 +5,16 @@ use serde_derive::*;
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(tag = "type")]
 enum RPCMessage {
+    #[serde(rename = "request")]
     Request(Request),
+    #[serde(rename = "response")]
     Response(Response),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 struct Request {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parent: Option<u32>,
     id: u32,
     params: Params,
 }
@@ -24,29 +28,37 @@ mod profile {
             pub username: String,
             pub password: String,
         }
+
+        impl Into<super::super::Params> for Params {
+            fn into(self) -> super::super::Params {
+                super::super::Params::ProfileLoginWithPassword(self)
+            }
+        }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(tag = "method", content = "payload")]
 enum Params {
-    LoginWithPassword(profile::login_with_password::Params),
+    #[serde(rename = "Profile.LoginWithPassword")]
+    ProfileLoginWithPassword(profile::login_with_password::Params),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 struct Response {
     id: u32,
-    method: String,
     error: Option<String>,
 }
 
 fn main() {
     let msg = RPCMessage::Request(Request {
+        parent: None,
         id: 42069,
-        params: Params::LoginWithPassword(profile::login_with_password::Params {
+        params: profile::login_with_password::Params {
             username: "john".into(),
             password: "hunter2".into(),
-        }),
+        }
+        .into(),
     });
 
     let mut buf: Vec<u8> = Vec::new();
