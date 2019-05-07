@@ -41,8 +41,8 @@ struct MessageVisitor;
 impl<'de> Visitor<'de> for MessageVisitor {
     type Value = Message;
 
-    fn expecting(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!()
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", "a valid msgpack-RPC message (ie. a sequence)")
     }
 
     fn visit_seq<S>(self, mut access: S) -> Result<Self::Value, S::Error>
