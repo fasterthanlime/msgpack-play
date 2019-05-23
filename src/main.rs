@@ -235,15 +235,50 @@ fn main() {
         });
     }
 
-    cycle(Message::Request {
-        parent: None,
-        id: 127,
-        params: Params::Profile_LoginWithPassword(profile::login_with_password::Params {
-            username: "john".into(),
-            password: "hunter2".into(),
-            bytes: vec![0x31, 0x00, 0x12, 0x24],
-        }),
-    });
+    if false {
+        cycle(Message::Request {
+            parent: None,
+            id: 127,
+            params: Params::Profile_LoginWithPassword(profile::login_with_password::Params {
+                username: "john".into(),
+                password: "hunter2".into(),
+                bytes: vec![0x31, 0x00, 0x12, 0x24],
+            }),
+        });
+    }
+
+    {
+        use serde_derive::*;
+
+        #[derive(Serialize)]
+        struct S1 {
+            t: (),
+        }
+
+        #[derive(Serialize)]
+        struct S2 {
+            t: S22,
+        }
+
+        #[derive(Serialize)]
+        struct S22 {}
+
+        {
+            let msg = S1 { t: () };
+            let mut buf: Vec<u8> = Vec::new();
+            msg.serialize(&mut rmp_serde::Serializer::new_named(&mut buf))
+                .unwrap();
+            println!("{:#?}", buf);
+        }
+
+        {
+            let msg = S2 { t: S22 {} };
+            let mut buf: Vec<u8> = Vec::new();
+            msg.serialize(&mut rmp_serde::Serializer::new_named(&mut buf))
+                .unwrap();
+            println!("{:#?}", buf);
+        }
+    }
 }
 
 fn dump_as_json<R>(input: R)
